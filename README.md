@@ -1,4 +1,4 @@
-# MolGAN
+# UWMMSE-MIMO
 Tensorflow implementation of UWMMSE-MIMO
 
 ## Overview
