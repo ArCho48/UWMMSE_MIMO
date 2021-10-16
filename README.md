@@ -27,17 +27,19 @@ For questions and comments, feel free to contact [Arindam Chowdhury](mailto:arin
 
 ## Citation
 ```
-[1] Chowdhury A, Verma G, Rao C, Swami A, Segarra S. Unfolding WMMSE using Graph Neural Networks 
-for Efficient Power Allocation. arXiv preprint arXiv:2009.10812. 2020 Sep 22.
+[1] Chowdhury A, Verma G, Rao C, Swami A, Segarra S. ML-aided power allocation for Tactical MIMO. 
+arXiv preprint arXiv:2109.06992 2021 Sep 14.
 ```
 
 BibTeX format:
 ```
-@article{chowdhury2020unfolding,
-  title={Unfolding WMMSE using Graph Neural Networks for Efficient Power Allocation},
+@article{chowdhury2021ml,
+  title={ML-aided power allocation for Tactical MIMO},
   author={Chowdhury, Arindam and Verma, Gunjan and Rao, Chirag and Swami, Ananthram and Segarra, Santiago},
-  journal={arXiv preprint arXiv:2009.10812},
-  year={2020}
+  journal={arXiv e-prints},
+  pages={arXiv--2109},
+  year={2021}
 }
+
 
 ```
