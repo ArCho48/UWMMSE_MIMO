@@ -80,13 +80,13 @@ def pdump( dump, path ):
 def generate_rayleigh_CSI(K, num_H, rng, diag_ratio=1):
     CH = 1 / np.sqrt(2) * (rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas) + 1j * rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas))
 
-    return CH
+    return np.absolute(CH)
 
 # Rician channel
 def generate_rice_CSI(K, num_H, rng):
     CH = sig_ric * (mu_ric + rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas) + 1j * (mu_ric + rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas)))
 
-    return CH
+    return np.absolute(CH)
 
 # Geometric channel
 def generate_geometry_CSI(K, num_H, rng, area_length=10, alpha=2):
@@ -122,7 +122,7 @@ def genTeData(usrs):
             #CH = generate_rayleigh_CSI(K, 1, rng, diag_ratio=1)
             #CH = generate_rice_CSI(K, 1, rng)
             CH = generate_geometry_CSI(K, 1, rng, area_length=K, alpha=3)
-            tH.append(np.absolute(CH))
+            tH.append(CH)
         
     return(tS,tH)
 
@@ -134,7 +134,7 @@ def genTrData(K):
         #CH = generate_rayleigh_CSI(K, 1, rng, diag_ratio=1)
         #CH = generate_rice_CSI(K, 1, rng)        
         CH = generate_geometry_CSI(K, 1, rng, area_length=K, alpha=3)
-        H.append(np.absolute(CH))
+        H.append(CH)
        
     return( np.asarray(H) )
 
