@@ -59,6 +59,12 @@ resultPath = 'results/'+FLAGS.datasetID+'/'
 # Noise power
 var = 10**(FLAGS.var_db/10)
 
+# Rician channel params
+k_dB = 20
+k = 10**(k_dB/10)
+mu_ric = np.sqrt(k/(2*(k+1)))
+sig_ric = np.sqrt(1/(2*(k+1)))
+
 # Pickle Load
 def pload( path ):
     dump = pickle.load( open( path, 'rb' ) )
@@ -70,33 +76,69 @@ def pdump( dump, path ):
     pickle.dump(dump, f)
     f.close()
 
-# Generate data
+# Rayleigh channel
+def generate_rayleigh_CSI(K, num_H, rng, diag_ratio=1):
+    CH = 1 / np.sqrt(2) * (rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas) + 1j * rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas))
+
+    return CH
+
+# Rician channel
+def generate_rice_CSI(K, num_H, rng):
+    CH = sig_ric * (mu_ric + rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas) + 1j * (mu_ric + rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas)))
+
+    return CH
+
+# Geometric channel
+def generate_geometry_CSI(K, num_H, rng, area_length=10, alpha=2):
+    tx_pos = np.zeros([num_H, K, 2])
+    rx_pos = np.zeros([num_H, K, 2])
+    rayleigh_coeff = np.zeros([num_H, K, K, FLAGS.rx_antennas,FLAGS.tx_antennas])
+    for i in range(num_H):
+        tx_pos[i, :, :] = rng.rand(K, 2) * area_length
+        rx_pos[i, :, :] = rng.rand(K, 2) * area_length
+        rayleigh_coeff[i, :, :] = (
+            np.square(rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas)) + np.square(rng.randn(K, K,FLAGS.rx_antennas,FLAGS.tx_antennas))) / 2
+
+    tx_pos_x = np.reshape(tx_pos[:, :, 0], [num_H, K, 1]) + np.zeros([1, 1, K])
+    tx_pos_y = np.reshape(tx_pos[:, :, 1], [num_H, K, 1]) + np.zeros([1, 1, K])
+    rx_pos_x = np.reshape(rx_pos[:, :, 0], [num_H, 1, K]) + np.zeros([1, K, 1])
+    rx_pos_y = np.reshape(rx_pos[:, :, 1], [num_H, 1, K]) + np.zeros([1, K, 1])
+    d = np.sqrt(np.square(tx_pos_x - rx_pos_x) +
+                np.square(tx_pos_y - rx_pos_y))
+    G = np.divide(1, 1 + d**alpha)
+    G = np.expand_dims(np.expand_dims(G,-1),-1) * rayleigh_coeff
+    
+    return np.squeeze(np.sqrt(G))
+
+# Generate Test data
 def genTeData(usrs):
     tS = []
     tH = []
-    vH = []
     for i in range(int(FLAGS.te_smpls/FLAGS.batch_size)):
         K = random.sample(usrs,1)[0]
         tS.append(K)
+        rng = np.random.RandomState(np.random.randint(1000,5000))
         for j in range(FLAGS.batch_size):
-            CH = np.sqrt(0.5*M)*(np.random.randn(K,K,FLAGS.rx_antennas,FLAGS.tx_antennas)+1j*np.random.randn(K,K,FLAGS.rx_antennas,FLAGS.tx_antennas))
+            #CH = generate_rayleigh_CSI(K, 1, rng, diag_ratio=1)
+            #CH = generate_rice_CSI(K, 1, rng)
+            CH = generate_geometry_CSI(K, 1, rng, area_length=K, alpha=3)
             tH.append(np.absolute(CH))
-    for i in range(int(FLAGS.val_smpls/FLAGS.batch_size)):
-        K = random.sample(usrs,1)[0]
-        for j in range(FLAGS.batch_size):
-            CH = np.sqrt(0.5*M)*(np.random.randn(K,K,FLAGS.rx_antennas,FLAGS.tx_antennas)+1j*np.random.randn(K,K,FLAGS.rx_antennas,FLAGS.tx_antennas))
-            vH.append(np.absolute(CH))
         
-    return(tS,tH,vH)
+    return(tS,tH)
 
+# Generate Train data
 def genTrData(K):
     H = []
+    rng = np.random.RandomState(np.random.randint(1000,5000))
     for i in range(FLAGS.batch_size):
-        CH = np.sqrt(0.5*M)*(np.random.randn(K,K,FLAGS.rx_antennas,FLAGS.tx_antennas)+1j*np.random.randn(K,K,FLAGS.rx_antennas,FLAGS.tx_antennas))
+        #CH = generate_rayleigh_CSI(K, 1, rng, diag_ratio=1)
+        #CH = generate_rice_CSI(K, 1, rng)        
+        CH = generate_geometry_CSI(K, 1, rng, area_length=K, alpha=3)
         H.append(np.absolute(CH))
-    
+       
     return( np.asarray(H) )
 
+# Post process result
 def proc_res(sum_rate,test_sizes):
     sizes = np.unique(test_sizes)
     msrs = []
@@ -137,15 +179,13 @@ def mainTrain():
     if not os.path.exists(dataPath):
         os.makedirs(dataPath)
         usrs = list(range(FLAGS.min_users,FLAGS.max_users+1,1))
-        test_sizes,test_H, val_H = genTeData(usrs)
+        test_sizes, test_H = genTeData(usrs)
         pdump( test_sizes, dataPath+'test_sizes.pkl' )
         pdump( test_H, dataPath+'test_H.pkl' )
-        pdump( val_H, dataPath+'val_H.pkl' )
         print("Created dataset")
     else:
         test_sizes = pload( dataPath+'test_sizes.pkl' )
         test_H = pload( dataPath+'test_H.pkl' )
-        val_H = pload( dataPath+'val_H.pkl' )
         print("Loaded dataset")
         
     # Initiate TF session for WMMSE
@@ -235,27 +275,27 @@ def mainTrain():
                         val_rate = 0.0
                         val_iter = FLAGS.val_smpls
                         
-                        for batch in range(0,val_iter,FLAGS.batch_size):
-                            batch_val_inputs = val_H[batch:batch+FLAGS.batch_size]
-                            avg_sum_rate, batch_rate, batch_power = model.eval( sess, inputs=batch_val_inputs)
-                            if np.isnan(avg_sum_rate) or np.isinf(avg_sum_rate):
+                        for batch in range(val_iter):
+                            usr = random.sample(usrs,1)[0]
+                            batch_val_inputs = genTrData(usr)
+                            avg_rate, batch_rate, batch_power = model.eval( sess, inputs=batch_val_inputs)
+                            if np.isnan(avg_rate) or np.isinf(avg_rate):
                                 pdb.set_trace()
-                            val_rate += -avg_sum_rate
-                        
+                            val_rate += -avg_rate
+                            
                         val_rate /= val_iter
-                        val_rate *= FLAGS.batch_size
 
-                        log = "Iters {}/{}, Train Mean_rate = {:.3f}, \nValid Mean_rate = {:.3f}, Time Elapsed = {:.3f} sec\n"
+                        log = "Iters {}/{}, Train Sum_rate = {:.3f}, \nValid Sum_rate = {:.3f}, Time Elapsed = {:.3f} sec\n"
                         print(log.format( it+1, FLAGS.tr_iter, train_rate, val_rate, time.time() - start) )
                                             
                         train_rate = 0.0
 
                         if (val_rate > max_rate):
                             max_rate = val_rate
-                        model.save(sess, path=modelPath+'uwmmse-model', global_step=(it+1))
+                            model.save(sess, path=modelPath+'uwmmse-model', global_step=(it+1))
 
                 print( 'Training Complete' )
-
+            
             # Test
             t = 0.
             test_rate = 0.0
