@@ -30,6 +30,8 @@ from model import UWMMSE
 flags = tf.compat.v1.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_string('datasetID', 'set1', 'Dataset string.')
+flags.DEFINE_string('modelID', 'set1', 'Dataset string.')
+flags.DEFINE_string('resultID', 'set1', 'Result string.')
 flags.DEFINE_integer('min_users', 5, 'Minimum number of users in ad-hoc network.')
 flags.DEFINE_integer('max_users', 50, 'Maximum number of users in ad-hoc network.')
 flags.DEFINE_integer('tr_usr_steps', 2, 'Skip sizes in training.')
@@ -53,8 +55,8 @@ flags.DEFINE_integer('te_smpls', 10048, 'Number of test samples.')
 
 # Define Paths
 dataPath = 'data/'+FLAGS.datasetID+'/'
-modelPath = 'models/'+FLAGS.datasetID+'/'
-resultPath = 'results/'+FLAGS.datasetID+'/'
+modelPath = 'models/'+FLAGS.modelID+'/'
+resultPath = 'results/'+FLAGS.resultID+'/'
 
 # Noise power
 var = 10**(FLAGS.var_db/10)
